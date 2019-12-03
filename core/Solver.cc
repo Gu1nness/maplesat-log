@@ -175,31 +175,32 @@ Var Solver::newVar(bool sign, bool dvar)
 }
 
 
-unsigned int Solver::learntSize() {
-    unsigned int size = 0;
+long unsigned int Solver::learntSize() {
+    long unsigned int size = learnts.capacity();
     for(ClauseIterator ci = learntBegin(); ci != learntEnd(); ++ci) {
         size += (*ci).memSize();
     }
+    stats.newLearnt(size);
     return size;
 }
 
-unsigned int Solver::clausesSize() {
-    unsigned int size = 0;
+long unsigned int Solver::clausesSize() {
+    long unsigned int size = 0;
     for(ClauseIterator ci = clausesBegin(); ci != clausesEnd(); ++ci) {
         size += (*ci).memSize();
     }
     return size;
 }
 
-unsigned int Solver::problemSize() {
-    unsigned int size = 0;
-    size += clausesSize();
-    size += clauses_literals * sizeof(Lit);
+long unsigned int Solver::problemSize() {
+    long unsigned int size = clausesSize();
+    stats.set_problemSize(size);
     return size;
 }
 
-unsigned int Solver::watcherSize() {
-    unsigned int size = watches.size();
+long unsigned int Solver::watcherSize() {
+    long unsigned int size = watches.size();
+    stats.newWatches(size);
     return size;
 }
 
@@ -923,8 +924,8 @@ lbool Solver::search(int nof_conflicts)
 #endif
             uncheckedEnqueue(next);
         }
-        LOG(DEBUG) << learntSize();
-        LOG("2-watch") << watcherSize();
+        learntSize();
+        watcherSize();
     }
 }
 

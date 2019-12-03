@@ -220,10 +220,10 @@ public:
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
 
-    unsigned int memSize() const {
-        unsigned int size = 0;
+    long unsigned int memSize() const {
+        long unsigned int size = 0;
         size += sizeof(*this);
-        size += 8 * this->size();
+        size += (sizeof(Lit)+sizeof(uint32_t) + sizeof(CRef)) * this->size();
         return size;
     }
 
@@ -332,7 +332,7 @@ class OccLists
         size += sizeof(deleted);
         size += sizeof(occs);
         for (int index = 0; index < occs.size(); index++) {
-            size += occs[index].memSize();
+            size += occs[index].size() * sizeof(occs[0]);
         }
         size += dirty.size();
         size += dirties.size() * sizeof(Idx);

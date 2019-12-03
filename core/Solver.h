@@ -25,6 +25,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Heap.h"
 #include "mtl/Alg.h"
 #include "utils/Options.h"
+#include "utils/StatsCollector.h"
 #include "core/SolverTypes.h"
 
 
@@ -74,15 +75,18 @@ public:
 
     /// Size computation of some instances.
     // Returns the clause pool size
-    virtual unsigned int clausesSize();
+    long unsigned int clausesSize();
     // Returns the learnts clauses pool size
-    virtual unsigned int learntSize();
+    long unsigned int learntSize();
     // Return the problem size
-    virtual unsigned int problemSize();
+    long unsigned int problemSize();
     // Return the 2-watch literals size.
-    virtual unsigned int watcherSize();
+    long unsigned int watcherSize();
 
-
+    // Statistics
+    StatsCollector stats;
+    const char* stats_output_name;
+    const char* stats_synthetic_name;
 
     void    toDimacs     (FILE* f, const vec<Lit>& assumps);            // Write CNF to file in DIMACS-format.
     void    toDimacs     (const char *file, const vec<Lit>& assumps);

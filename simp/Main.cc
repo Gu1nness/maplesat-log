@@ -61,6 +61,7 @@ static Solver* solver;
 // Terminate by notifying the solver and back out gracefully. This is mainly to have a test-case
 // for this feature of the Solver as it may take longer than an immediate call to '_exit()'.
 static void SIGINT_interrupt(int signum) { solver->interrupt(); }
+static void SIGTERM_interrupt(int signum) { solver->interrupt(); }
 
 // Note that '_exit()' rather than 'exit()' has to be used. The reason is that 'exit()' calls
 // destructors and may cause deadlocks if a malloc/free function happens to be running (these
@@ -70,6 +71,14 @@ static void SIGINT_exit(int signum) {
     if (solver->verbosity > 0){
         printStats(*solver);
         printf("\n"); printf("*** INTERRUPTED ***\n"); }
+    _exit(1); }
+static void SIGTERM_exit(int signum) {
+    printf("\n"); printf("*** INTERRUPTED ***\n");
+    if (solver->verbosity > 0){
+        printStats(*solver);
+        printf("\n"); printf("*** INTERRUPTED ***\n"); }
+    solver->stats.syntheticOutput(solver->stats_synthetic_name);
+    solver->stats.outputCSV(solver->stats_output_name);
     _exit(1); }
 
 
@@ -104,11 +113,27 @@ int main(int argc, char** argv)
         if (!pre) S.eliminate(true);
 
         S.verbosity = verb;
+
+        std::string str_name(argv[1]);
+        std::string delimiter = "/";
+        size_t pos = 0;
+        std::string token;
+        while ((pos = str_name.find(delimiter)) != std::string::npos) {
+            token = str_name.substr(0, pos);
+            str_name.erase(0, pos + delimiter.length());
+        }
+        str_name.insert(0, "/data/roudin/maplesat/");
+        std::string str_name_synth = str_name;
+        str_name.append(".csv");
+        S.stats_output_name = str_name.c_str();
+        str_name_synth.append(".synth");
+        S.stats_synthetic_name = str_name_synth.c_str();
         
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
         // interrupts:
         signal(SIGINT, SIGINT_exit);
+        signal(SIGTERM, SIGTERM_exit);
         signal(SIGXCPU,SIGINT_exit);
 
         // Set limit on CPU-time:
@@ -144,7 +169,7 @@ int main(int argc, char** argv)
             printf("|                                                                             |\n"); }
         
         parse_DIMACS(in, S);
-        LOG("DEBUG") << S.problemSize();
+        S.problemSize();
         gzclose(in);
         FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
 
@@ -159,6 +184,7 @@ int main(int argc, char** argv)
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
         signal(SIGINT, SIGINT_interrupt);
+        signal(SIGTERM, SIGTERM_interrupt);
         signal(SIGXCPU,SIGINT_interrupt);
 
         S.eliminate(true);
@@ -174,7 +200,9 @@ int main(int argc, char** argv)
                 printf("Solved by simplification\n");
                 printStats(S);
                 printf("\n"); }
-            printf("UNSATISFIABLE\n");
+            printf("s UNSATISFIABLE\n");
+            S.stats.syntheticOutput(S.stats_synthetic_name);
+            S.stats.outputCSV(S.stats_output_name);
             exit(20);
         }
 
@@ -209,7 +237,15 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             printStats(S);
             printf("\n"); }
-        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
+        printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s UNKNOWN\n");
+        if (ret == l_True){
+            printf("v ");
+            for (int i = 0; i < S.nVars(); i++)
+                if (S.model[i] != l_Undef)
+                    printf("%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
+            printf(" 0\n");
+        }
+
         if (res != NULL){
             if (ret == l_True){
                 fprintf(res, "SAT\n");
@@ -227,6 +263,8 @@ int main(int argc, char** argv)
                 fprintf(res, "INDET\n");
             fclose(res);
         }
+        S.stats.syntheticOutput(S.stats_synthetic_name);
+        S.stats.outputCSV(S.stats_output_name);
 
 #ifdef NDEBUG
         exit(ret == l_True ? 10 : ret == l_False ? 20 : 0);     // (faster than "return", which will invoke the destructor for 'Solver')
@@ -234,8 +272,8 @@ int main(int argc, char** argv)
         return (ret == l_True ? 10 : ret == l_False ? 20 : 0);
 #endif
     } catch (OutOfMemoryException&){
-        printf("===============================================================================\n");
-        printf("INDETERMINATE\n");
+        printf("s ===============================================================================\n");
+        printf("s UNKNOWN\n");
         exit(0);
     }
 }
